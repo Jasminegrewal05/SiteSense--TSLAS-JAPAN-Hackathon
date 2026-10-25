@@ -1,0 +1,9 @@
+# Optional: voice prints (tells the analyst's voice apart, and links people over time).
+# Pulls in PyTorch (a few hundred MB). Without it, SiteSense uses loudness and lip
+# movement instead.
+#
+# Windows / Mac:   pip install -r requirements-voice.txt
+# Linux (smaller CPU-only PyTorch):
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+#   pip install -r requirements-voice.txt
+Resemblyzer==0.1.4

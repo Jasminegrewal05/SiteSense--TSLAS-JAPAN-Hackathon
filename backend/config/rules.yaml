@@ -1,0 +1,350 @@
+# SiteSense risk rules.
+#
+# Each rule looks for one warning sign in the confirmed numbers.
+# If the sign is present, its checklist items are added.
+#
+#   when:      the condition. "all" = every line must be true, "any" = at least one.
+#              metric fields: current, previous, change, change_pct
+#              (change for a % metric is in percentage points)
+#   evidence:  the line shown as "why this is on the list"
+#   topics:    words that show this subject is being discussed (used on the visit transcript)
+#   compare:   (Phase 3, optional) how a statement is checked against the number:
+#              metric/field = the confirmed number, unit = pct | days | count,
+#              report_level + said_high/said_low = phrases that agree or disagree with it
+#   items:     area     - where in the visit this is checked
+#              kind     - look_for (on site) or ask (management)
+#              visit_types - only add on these visit types (leave out = all)
+#              vision   - optional picture-check question with FIXED options.
+#                         means: issue / ok / unclear.  "Not clearly visible" is always added.
+#
+# Placeholders like {inventory_days.current} are filled with real numbers.
+# Areas: Production floor, Warehouse, Dispatch, Store floor, Office,
+#        Management questions, General
+
+rules:
+  - id: INVENTORY_BUILDUP
+    signal: Inventory is piling up
+    severity: high
+    compare: {metric: inventory_days, field: current, unit: days}
+    when:
+      all:
+        - {metric: inventory_days.change, op: ">=", value: 10}
+    evidence: "Inventory days {inventory_days.previous} to {inventory_days.current}"
+    topics: [inventory, inventories, stock, stocks, finished goods, ageing, aging, slow moving]
+    items:
+      - area: Warehouse
+        kind: look_for
+        visit_types: [plant, warehouse, store]
+        text: "Check how full the finished-goods racks are. Look for dust, faded labels or old date codes on cartons."
+        vision:
+          question: "How full are the storage racks, and do the cartons look old?"
+          options:
+            - {label: "Mostly empty or about half full", means: ok}
+            - {label: "Mostly full, cartons look fresh", means: ok}
+            - {label: "Full, with dusty or old-looking cartons", means: issue}
+      - area: Warehouse
+        kind: look_for
+        visit_types: [plant, warehouse]
+        text: "Ask to see the oldest batch in stock and note its manufacture date."
+      - area: Office
+        kind: look_for
+        visit_types: [office]
+        text: "Ask for the latest inventory ageing report and note how much stock is older than 180 days."
+      - area: Management questions
+        kind: ask
+        text: "Inventory days rose from {inventory_days.previous} to {inventory_days.current}. What is driving the build-up, and how much stock is older than six months?"
+
+  - id: INVENTORY_AHEAD_OF_SALES
+    signal: Stock is growing much faster than sales
+    severity: medium
+    when:
+      all:
+        - {metric: inventory_growth_gap.current, op: ">=", value: 15}
+    evidence: "Inventories {inventory.change_pct} against revenue {revenue.change_pct}"
+    topics: [stock, inventory, orders, order book, demand, programme, program]
+    items:
+      - area: Management questions
+        kind: ask
+        text: "Inventories changed {inventory.change_pct} this year against {revenue.change_pct} for revenue. Is stock being built for confirmed orders? Which customers?"
+      - area: Dispatch
+        kind: look_for
+        visit_types: [plant, warehouse]
+        text: "Look at the dispatch bays. Are trucks loading, or is the area idle?"
+        vision:
+          question: "What is happening at the loading or dispatch area?"
+          options:
+            - {label: "Trucks loading or goods being moved", means: ok}
+            - {label: "Area idle, no loading", means: issue}
+
+  - id: RECEIVABLES_STRETCH
+    signal: Customers are paying more slowly
+    severity: high
+    compare: {metric: receivable_days, field: current, unit: days}
+    when:
+      all:
+        - {metric: receivable_days.change, op: ">=", value: 10}
+    evidence: "Receivable days {receivable_days.previous} to {receivable_days.current}"
+    topics: [receivable, receivables, debtors, pay, payment, payments, paying, collection, collections, credit period, dues, overdue]
+    items:
+      - area: Management questions
+        kind: ask
+        text: "Receivable days moved from {receivable_days.previous} to {receivable_days.current}. Which customers are paying late, and are any amounts disputed?"
+      - area: Office
+        kind: look_for
+        visit_types: [office, plant, warehouse]
+        text: "Ask to see last month's dispatch register and match three entries against invoices."
+      - area: Dispatch
+        kind: look_for
+        visit_types: [plant, warehouse]
+        text: "Note the customer names on goods waiting for dispatch. Are they the large customers named in the report?"
+
+  - id: UTILISATION_CLAIM
+    signal: Very high capacity use is claimed
+    severity: medium
+    compare:
+      metric: capacity_utilization
+      field: current
+      unit: pct
+      report_level: high
+      said_high: [full capacity, fully booked, fully utilised, fully utilized, three shifts, 3 shifts, round the clock, all lines running, running full]
+      said_low: [one shift, single shift, two shifts, 2 shifts, slow, idle, lines off, half capacity, under utilised, under utilized]
+    when:
+      all:
+        - {metric: capacity_utilization.current, op: ">=", value: 85}
+    evidence: "Claimed capacity utilisation {capacity_utilization.current}"
+    topics: [capacity, utilisation, utilization, shift, shifts, full capacity, running]
+    items:
+      - area: Production floor
+        kind: look_for
+        visit_types: [plant]
+        text: "Count machines running and idle on each line. Note any line that is switched off or covered."
+        vision:
+          question: "Of the machines visible, how many look like they are running?"
+          options:
+            - {label: "All or nearly all running", means: ok}
+            - {label: "About half running", means: issue}
+            - {label: "Most idle, switched off or covered", means: issue}
+      - area: Production floor
+        kind: look_for
+        visit_types: [plant]
+        text: "Read the shift roster on the notice board. How many shifts are running this week?"
+        vision:
+          question: "If a shift roster or notice board is readable, how many shifts does it show?"
+          options:
+            - {label: "Three shifts", means: ok}
+            - {label: "One or two shifts", means: issue}
+      - area: Management questions
+        kind: ask
+        text: "The report claims {capacity_utilization.current} capacity use. How many shifts run today, and which lines are at full capacity?"
+
+  - id: OUTPUT_UP_STAFF_DOWN
+    signal: Utilisation went up while headcount went down
+    severity: high
+    compare: {metric: employees, field: current, unit: count}
+    when:
+      all:
+        - {metric: capacity_utilization.change, op: ">=", value: 5}
+        - {metric: employees.change_pct, op: "<=", value: -3}
+    evidence: "Utilisation {capacity_utilization.previous} to {capacity_utilization.current}, employees {employees.previous} to {employees.current}"
+    topics: [employees, workers, staff, headcount, contract labour, contract labor, manpower, people]
+    items:
+      - area: Production floor
+        kind: look_for
+        visit_types: [plant]
+        text: "Compare the number of workers on the floor with the number of machines running."
+        vision:
+          question: "Compared with the machines in view, how many workers are on the floor?"
+          options:
+            - {label: "Workers at most running machines", means: ok}
+            - {label: "Many machines with nobody nearby", means: issue}
+      - area: Management questions
+        kind: ask
+        text: "Utilisation rose to {capacity_utilization.current} while employees fell from {employees.previous} to {employees.current}. How was output raised with fewer people? Is contract labour used?"
+
+  - id: DEBT_SURGE
+    signal: Borrowings rose sharply
+    severity: high
+    when:
+      all:
+        - {metric: total_debt.change_pct, op: ">=", value: 50}
+    evidence: "Borrowings {total_debt.previous} to {total_debt.current}"
+    topics: [borrowing, borrowings, loan, loans, debt, bank, banks, repayment, term loan]
+    items:
+      - area: Management questions
+        kind: ask
+        text: "Borrowings went from {total_debt.previous} to {total_debt.current}. What was the money used for, and when does repayment start?"
+      - area: Office
+        kind: look_for
+        visit_types: [office]
+        text: "Ask to see the sanction letter for the largest new loan and note its security and covenants."
+
+  - id: HIGH_LEVERAGE
+    signal: Debt is high compared with equity
+    severity: medium
+    when:
+      all:
+        - {metric: debt_to_equity.current, op: ">=", value: 1.0}
+    evidence: "Debt to equity {debt_to_equity.current}"
+    topics: [debt, loan, loans, covenant, covenants, leverage]
+    items:
+      - area: Management questions
+        kind: ask
+        text: "Debt to equity is {debt_to_equity.current}. Are any loan covenants close to being breached?"
+
+  - id: CAPEX_SPIKE
+    signal: Large new spending on assets
+    severity: medium
+    when:
+      any:
+        - {metric: capex.change_pct, op: ">=", value: 100}
+        - {metric: capex_to_revenue.current, op: ">=", value: 15}
+    evidence: "Capex {capex.previous} to {capex.current}"
+    topics: [capex, machine, machines, machinery, new line, cnc, equipment, commissioned, commissioning, installed]
+    items:
+      - area: Production floor
+        kind: look_for
+        visit_types: [plant]
+        text: "Find the new machinery or line bought with this spending. Note the make, the date on the installation plate, and whether it is running."
+        vision:
+          question: "Is there new-looking machinery in view, and is it running?"
+          options:
+            - {label: "New machinery, running", means: ok}
+            - {label: "New machinery, idle or still being installed", means: issue}
+            - {label: "No new-looking machinery in view", means: unclear}
+      - area: Warehouse
+        kind: look_for
+        visit_types: [warehouse]
+        text: "Look for new racking, handling equipment or extensions paid for this year."
+      - area: Management questions
+        kind: ask
+        text: "Capex was {capex.current} against {capex.previous} last year. Which assets were bought, and are they producing yet?"
+
+  - id: MARGIN_SQUEEZE
+    signal: Operating margin is shrinking
+    severity: medium
+    when:
+      all:
+        - {metric: ebitda_margin.change, op: "<=", value: -2}
+    evidence: "EBITDA margin {ebitda_margin.previous} to {ebitda_margin.current}"
+    topics: [margin, margins, cost, costs, steel, raw material, pricing, price, prices]
+    items:
+      - area: Production floor
+        kind: look_for
+        visit_types: [plant]
+        text: "Look for signs of rework, scrap piles or rejected batches near the lines."
+        vision:
+          question: "Are there scrap piles, rework or rejected batches near the lines?"
+          options:
+            - {label: "None seen", means: ok}
+            - {label: "Some scrap, rework or rejects visible", means: issue}
+      - area: Management questions
+        kind: ask
+        text: "EBITDA margin fell from {ebitda_margin.previous} to {ebitda_margin.current}. Is it raw material cost, pricing pressure or lower volumes?"
+
+  - id: REVENUE_DROP
+    signal: Revenue fell
+    severity: high
+    compare:
+      metric: revenue
+      field: change_pct
+      unit: pct
+      report_level: low
+      said_high: [growing, grew, record year, strong growth, order book is full]
+      said_low: [slow year, fell, dropped, lost a customer, lost customers, down this year]
+    when:
+      all:
+        - {metric: revenue.change_pct, op: "<=", value: -5}
+    evidence: "Revenue {revenue.change_pct}"
+    topics: [revenue, sales, customers, customer, order book, orders]
+    items:
+      - area: Management questions
+        kind: ask
+        text: "Revenue changed {revenue.change_pct}. Which customers or products were lost, and what is the order book now?"
+
+  - id: REVENUE_JUMP
+    signal: Revenue jumped unusually fast
+    severity: medium
+    compare:
+      metric: revenue
+      field: change_pct
+      unit: pct
+      report_level: high
+      said_high: [growing, grew, record year, strong growth, new customers, doubled]
+      said_low: [slow year, fell, dropped, flat, one-off, one time order]
+    when:
+      all:
+        - {metric: revenue.change_pct, op: ">=", value: 30}
+    evidence: "Revenue {revenue.change_pct}"
+    topics: [revenue, sales, growth, new customers, new customer]
+    items:
+      - area: Management questions
+        kind: ask
+        text: "Revenue moved {revenue.change_pct} in one year. Which new customers or products drove this, and is it repeat business?"
+      - area: Dispatch
+        kind: look_for
+        visit_types: [plant, warehouse]
+        text: "Check dispatch activity matches the higher sales: loaded trucks, fresh dispatch notes."
+        vision:
+          question: "What is happening at the loading or dispatch area?"
+          options:
+            - {label: "Trucks loading or goods being moved", means: ok}
+            - {label: "Area idle, no loading", means: issue}
+
+  - id: PRODUCTIVITY_FALL
+    signal: Revenue per employee is falling
+    severity: low
+    when:
+      all:
+        - {metric: revenue_per_employee.change_pct, op: "<=", value: -10}
+    evidence: "Revenue per employee {revenue_per_employee.previous} to {revenue_per_employee.current}"
+    topics: [hiring, hired, employees, productivity, headcount]
+    items:
+      - area: Management questions
+        kind: ask
+        text: "Revenue per employee fell from {revenue_per_employee.previous} to {revenue_per_employee.current}. Was hiring ahead of growth, or did sales slow?"
+
+# Extra words that are too common to show a topic on their own (added to the built-in list
+# in analysis.py: people, running, price, cost, bank, machine ...). A transcript line needs
+# one strong topic word, or two different weak ones, to count as being about a checklist item.
+weak_topics: []
+
+# Always added for the visit type, whatever the numbers say.
+baseline:
+  plant:
+    - area: Production floor
+      kind: look_for
+      text: "Note overall activity on the floor: how many lines are running and how busy it feels."
+      vision:
+        question: "How busy does the production floor look?"
+        options:
+          - {label: "Busy, most lines running", means: ok}
+          - {label: "Quiet, many lines idle", means: issue}
+    - area: Production floor
+      kind: look_for
+      text: "Check basic safety: guards on machines, clear fire exits, workers in safety gear."
+      vision:
+        question: "Do machine guards, clear walkways and safety gear look in place?"
+        options:
+          - {label: "Yes, mostly in place", means: ok}
+          - {label: "Clear safety gaps visible", means: issue}
+  warehouse:
+    - {area: Warehouse, kind: look_for, text: "Estimate how full the warehouse is overall."}
+    - {area: Dispatch, kind: look_for, text: "Note how many dispatch bays are active."}
+  office:
+    - {area: Office, kind: look_for, text: "Note how many desks are occupied compared with empty ones."}
+  store:
+    - {area: Store floor, kind: look_for, text: "Note footfall and how many billing counters are open."}
+    - area: Store floor
+      kind: look_for
+      text: "Check whether shelves are full or have visible gaps."
+      vision:
+        question: "Are the shelves in view well stocked?"
+        options:
+          - {label: "Well stocked", means: ok}
+          - {label: "Visible gaps on shelves", means: issue}
+  all:
+    - {area: General, kind: look_for, text: "Note anything that looks different from how management described it."}
+
+# Added when the company is leading the tour.
+guided_tour:
+  - {area: General, kind: look_for, text: "The company is leading this tour, so areas may be prepared in advance. Ask to see one area that is not on the planned route."}

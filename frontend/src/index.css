@@ -1,0 +1,124 @@
+@import "tailwindcss";
+
+/*
+  SiteSense design tokens.
+  Indigo is the brand (from the pitch deck). Red, amber, green and slate are
+  reserved for meaning: high risk, medium risk, checked, could not check.
+*/
+@theme {
+  --color-ink: #252a6b;
+  --color-ink-hover: #1b1f55;
+  --color-ink-50: #eef0fa;
+  --color-ink-100: #dfe2f4;
+
+  --color-canvas: #f4f5f7;
+  --color-line: #d5dae2;
+  --color-line-strong: #b9c0cc;
+  --color-text: #14172b;
+  --color-sub: #555c70;
+
+  --color-high: #b42318;
+  --color-high-bg: #fef3f2;
+  --color-med: #b54708;
+  --color-med-bg: #fffaeb;
+  --color-ok: #067647;
+  --color-ok-bg: #ecfdf3;
+  --color-nv: #475467;
+  --color-nv-bg: #f2f4f7;
+
+  --font-sans: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-serif: "Atkinson Hyperlegible", system-ui, sans-serif;
+
+  /* Larger steps than the defaults: everything is easy to read on a laptop and on a phone */
+  --text-xs: 0.875rem;
+  --text-xs--line-height: 1.35;
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: 1.45;
+  --text-base: 1rem;
+  --text-lg: 1.1875rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2.125rem;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  font-size: 17px;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+h1, h2, h3 {
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+/* A verdict looks like an inspection tag: notched on the left */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  font-weight: 700;
+  font-size: 0.9375rem;
+  line-height: 1;
+  padding: 0.5em 0.85em 0.5em 1.15em;
+  border-radius: 0 6px 6px 0;
+  clip-path: polygon(0.6em 0, 100% 0, 100% 100%, 0.6em 100%, 0 50%);
+  color: #fff;
+  white-space: nowrap;
+}
+.tag::before {
+  content: "";
+  width: 0.38em;
+  height: 0.38em;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+}
+.tag-differs { background: var(--color-high); }
+.tag-not_shown { background: var(--color-med); }
+.tag-supported { background: var(--color-ok); }
+.tag-unchecked { background: var(--color-nv); }
+
+/* Numbers line up in columns, like a ledger */
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+.sheet-enter {
+  animation: sheet-up 180ms ease-out;
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media print {
+  body { background: #fff; font-size: 15px; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  @page { margin: 16mm; }
+}

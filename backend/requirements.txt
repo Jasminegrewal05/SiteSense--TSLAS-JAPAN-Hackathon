@@ -1,0 +1,17 @@
+# Phase 1
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.32
+google-auth==2.37.0
+requests==2.32.3
+python-dotenv==1.0.1
+itsdangerous==2.2.0
+cryptography==50.0.2
+pdfplumber==0.11.10
+openpyxl==3.1.5
+PyYAML==6.0.3
+
+# Phase 2 (also needs the ffmpeg program installed, see README)
+numpy>=1.26
+opencv-python-headless>=4.9
+faster-whisper>=1.1

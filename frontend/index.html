@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#252A6B" />
+    <title>SiteSense</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- If the app cannot start (old browser, blocked script, network), show why instead of a blank page. -->
+    <script>
+      (function () {
+        var shown = false;
+        function show(msg) {
+          if (shown) return;
+          shown = true;
+          var d = document.createElement("div");
+          d.style.cssText = "font:16px/1.5 system-ui,sans-serif;padding:20px;color:#14172b;max-width:640px";
+          d.innerHTML =
+            "<h2 style='margin:0 0 8px'>SiteSense could not start</h2>" +
+            "<p style='margin:0 0 12px'>" + String(msg).replace(/</g, "&lt;") + "</p>" +
+            "<p style='margin:0 0 6px'><b>Try:</b> open this link in Chrome or Safari itself (not inside a QR scanner app), " +
+            "check the phone and laptop are on the same hotspot, and update the phone's browser.</p>" +
+            "<p style='margin:0;color:#555c70;font-size:13px'>Address: " + location.href + "<br>Browser: " + navigator.userAgent + "</p>";
+          document.body.appendChild(d);
+        }
+        // Only when the screen is actually empty: a working app is never covered.
+        function ifEmpty(msg) {
+          setTimeout(function () {
+            var root = document.getElementById("root");
+            if (root && !root.children.length) show(msg);
+          }, 600);
+        }
+        window.addEventListener("error", function (e) { ifEmpty(e.message || "A script failed to load."); }, true);
+        window.addEventListener("unhandledrejection", function (e) { ifEmpty((e.reason && e.reason.message) || "A request failed."); });
+        setTimeout(function () {
+          var root = document.getElementById("root");
+          if (root && !root.children.length) show("The page loaded, but the app did not start within 10 seconds.");
+        }, 10000);
+      })();
+    </script>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

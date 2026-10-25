@@ -1,0 +1,14 @@
+# Secrets - never commit
+.env
+backend/.env
+
+# Accounts, company documents and visit data - never commit
+backend/data/
+
+# Build / install folders
+node_modules/
+frontend/dist/
+__pycache__/
+*.pyc
+.venv/
+venv/
